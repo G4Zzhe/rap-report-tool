@@ -40,6 +40,10 @@ hot_search:
     - "地下八英里"
   weibo_cookie: ""  # 微博登录 Cookie，需要时填入 config.local.yaml
 
+# PPT 模板配置（公司模板路径，留空则使用内置通用版式）
+pptx:
+  template_path: ""  # 例如：D:\\G4Zzz\\工作文档目录\\神速信息_说唱音乐行业全景洞察分析报告（2026.7.16-7.31）.pptx
+
 # 平台榜单 URL 或 ID
 platforms:
   netease_chinese:

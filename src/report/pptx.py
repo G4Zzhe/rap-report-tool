@@ -25,8 +25,8 @@ from src.utils import OUTPUT_DIR
 
 logger = logging.getLogger("rap_report")
 
-# 模板路径（Windows 路径，WSL 下映射为 /mnt/d/...）
-DEFAULT_TEMPLATE_PATH = Path("/mnt/d/G4Zzz/工作文档/神速信息_说唱音乐行业全景洞察分析报告（2026.7.16-7.31）.pptx")
+# 默认模板路径可在 config.yaml 的 pptx.template_path 中覆盖
+DEFAULT_TEMPLATE_PATH = None
 
 # 配色方案（与公司模板主色调对齐）
 PRIMARY_COLOR = RGBColor(31, 78, 153)      # 深蓝
@@ -68,10 +68,14 @@ def _add_text_box(
     align: PP_ALIGN = PP_ALIGN.LEFT,
     font_name: str = "Microsoft YaHei",
 ) -> Any:
-    """统一添加文本框并设置格式。"""
+    """统一添加文本框并设置格式。
+
+    当文本可能过长时，自动减小字号以避免溢出。
+    """
     box = slide.shapes.add_textbox(Inches(left), Inches(top), Inches(width), Inches(height))
     tf = box.text_frame
     tf.word_wrap = True
+    tf.auto_size = None  # 不自动调整文本框大小
     p = tf.paragraphs[0]
     p.text = text
     p.font.size = Pt(font_size)
@@ -79,6 +83,15 @@ def _add_text_box(
     p.font.color.rgb = color
     p.font.name = font_name
     p.alignment = align
+
+    # 粗略溢出检测：按每行可容纳字符数估算
+    max_chars_per_line = int(width * 40 / (font_size / 12))
+    max_lines = max(1, int(height * 25 / (font_size / 12)))
+    total_chars = len(text)
+    estimated_lines = max(1, total_chars / max_chars_per_line)
+    if estimated_lines > max_lines and font_size > 10:
+        new_size = max(10, int(font_size * max_lines / estimated_lines))
+        p.font.size = Pt(new_size)
     return box
 
 
@@ -106,6 +119,13 @@ def _add_title_slide(prs: Presentation, title: str, subtitle: str, period: str) 
     _add_text_box(
         slide, 0.8, 4.7, 8.4, 0.5,
         period, font_size=18, bold=False, color=RGBColor(100, 100, 100), align=PP_ALIGN.CENTER
+    )
+
+    # 底部提示
+    _add_text_box(
+        slide, 0.8, 6.6, 8.4, 0.5,
+        "本报告由自动化工具生成，分析文案为 AI 初稿，发布前请人工审核。",
+        font_size=12, color=RGBColor(150, 150, 150), align=PP_ALIGN.CENTER
     )
 
 
@@ -168,11 +188,10 @@ def _add_platform_summary_slide(
     _add_section_header(slide, "平台榜单总结")
 
     content = ai_texts.get("platform_summary") or "（AI 文案未生成）"
-    # 去除 Markdown 加粗标记
     content = content.replace("**", "")
 
     _add_text_box(
-        slide, 0.7, 1.4, 8.6, 4.5,
+        slide, 0.7, 1.4, 8.6, 5.2,
         content, font_size=16, color=TEXT_DARK
     )
 
@@ -320,7 +339,7 @@ def _add_hit_songs_slide(prs: Presentation, analysis: Dict[str, Any], ai_texts: 
 
 
 def _add_chart_slides(prs: Presentation, chart_paths: List[Path]) -> None:
-    """为每个图表添加一页。"""
+    """为每个图表添加一页，避免图片溢出。"""
     for chart_path in chart_paths:
         if not chart_path.exists():
             continue
@@ -330,11 +349,15 @@ def _add_chart_slides(prs: Presentation, chart_paths: List[Path]) -> None:
         title = chart_path.stem.replace("chart_", "").replace("_", " ").title()
         _add_section_header(slide, title)
 
+        # 安全区域：标题栏占 0.45~1.2，图片从 1.3 开始，底部留 0.3
+        available_height = 7.5 - 1.3 - 0.3  # 5.9 inches
+        available_width = 10 - 1.0 - 1.0  # 8 inches
         slide.shapes.add_picture(
             str(chart_path),
             Inches(1.0),
-            Inches(1.4),
-            width=Inches(8.0),
+            Inches(1.3),
+            width=Inches(min(8.0, available_width)),
+            height=Inches(min(5.5, available_height)),
         )
 
 
@@ -373,11 +396,14 @@ def generate_pptx(
     优先使用公司模板；若模板不可用，则创建一个包含基础页面的新演示文稿。
     """
     report_cfg = config.get("report", {})
+    pptx_cfg = config.get("pptx", {})
     title = report_cfg.get("title", "说唱音乐行业全景洞察分析报告")
     subtitle = report_cfg.get("subtitle", "深度解析舆情、数据、艺人及产业链趋势（双周版）")
     period = _format_period(start_date, end_date)
 
-    template = template_path or DEFAULT_TEMPLATE_PATH
+    template = template_path or pptx_cfg.get("template_path") or DEFAULT_TEMPLATE_PATH
+    if template:
+        template = Path(template)
     if template and template.exists():
         prs = Presentation(str(template))
         logger.info("使用 PPT 模板: %s", template)
@@ -385,7 +411,10 @@ def generate_pptx(
         prs = Presentation()
         prs.slide_width = Inches(10)
         prs.slide_height = Inches(7.5)
-        logger.warning("PPT 模板未找到，使用空白演示文稿: %s", template)
+        if template:
+            logger.warning("PPT 模板未找到，使用空白演示文稿: %s", template)
+        else:
+            logger.info("未配置 PPT 模板，使用内置通用版式")
 
     _add_title_slide(prs, title, subtitle, period)
     _add_overview_slide(prs, analysis, start_date, end_date)
