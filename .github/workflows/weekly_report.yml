@@ -36,14 +36,17 @@ jobs:
 
       - name: 运行报告生成
         env:
+          # 如需启用 AI 文案，请在仓库 Settings -> Secrets -> Actions 中配置：
+          # AI_BASE_URL, AI_API_KEY, AI_MODEL
+          # 当前默认使用 --no-ai 模式，避免依赖个人 API Key
           AI_BASE_URL: ${{ secrets.AI_BASE_URL }}
           AI_API_KEY: ${{ secrets.AI_API_KEY }}
           AI_MODEL: ${{ secrets.AI_MODEL }}
         run: |
           if [ -n "${{ github.event.inputs.start_date }}" ]; then
-            python run.py --start ${{ github.event.inputs.start_date }} --end ${{ github.event.inputs.end_date }}
+            python run.py --start ${{ github.event.inputs.start_date }} --end ${{ github.event.inputs.end_date }} --no-ai
           else
-            python run.py
+            python run.py --no-ai
           fi
 
       - name: 上传输出文件
