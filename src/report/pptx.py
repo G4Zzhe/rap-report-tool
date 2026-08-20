@@ -1,11 +1,14 @@
 """PPT 报告生成。
 
-读取公司 PPT 模板，基于数据、AI 文案和图表自动填充以下内容：
+读取公司 PPT 模板或内置版式，基于数据、AI 文案和图表自动填充以下内容：
 - 封面（标题、副标题、周期）
 - 数据概览
 - 平台榜单总结 + 各平台 TOP10
 - 头部艺人表现
 - 跨平台爆款
+- 周期内关键行业信息
+- 演出与市场动态
+- 代表厂牌深度解析
 - 可视化图表页
 - 待人工补充的章节提示页
 
@@ -14,13 +17,21 @@
 import logging
 from datetime import datetime
 from pathlib import Path
-from typing import Any, Dict, List, Optional
+from typing import Any, Dict, List, Optional, Tuple
 
 from pptx import Presentation
 from pptx.dml.color import RGBColor
 from pptx.enum.text import MSO_ANCHOR, PP_ALIGN
 from pptx.util import Inches, Pt
 
+from src.fetchers.manual_data import (
+    format_events_for_report,
+    format_industry_for_report,
+    format_labels_for_report,
+    load_events,
+    load_industry,
+    load_labels,
+)
 from src.utils import OUTPUT_DIR
 
 logger = logging.getLogger("rap_report")
@@ -338,6 +349,52 @@ def _add_hit_songs_slide(prs: Presentation, analysis: Dict[str, Any], ai_texts: 
             p.font.color.rgb = TEXT_DARK
 
 
+def _add_manual_data_slide(
+    prs: Presentation,
+    section_title: str,
+    rows: List[Tuple[str, str]],
+    empty_hint: str,
+) -> None:
+    """添加手动数据页（演出/厂牌/行业动态）。"""
+    layout = _get_blank_layout(prs)
+    slide = prs.slides.add_slide(layout)
+    _add_section_header(slide, section_title)
+
+    if not rows:
+        _add_text_box(
+            slide, 0.8, 1.5, 8.4, 1.0,
+            empty_hint, font_size=16, color=RGBColor(120, 120, 120)
+        )
+        return
+
+    # 每页最多放 6 条，避免溢出
+    page_rows = rows[:6]
+    top = 1.4
+    for title, detail in page_rows:
+        # 标题
+        _add_text_box(
+            slide, 0.8, top, 8.4, 0.45,
+            title, font_size=16, bold=True, color=PRIMARY_COLOR
+        )
+        top += 0.42
+        # 详情
+        if detail:
+            _add_text_box(
+                slide, 1.0, top, 8.2, 0.45,
+                detail, font_size=13, color=TEXT_DARK
+            )
+            top += 0.55
+        else:
+            top += 0.2
+
+    if len(rows) > 6:
+        _add_text_box(
+            slide, 0.8, 6.8, 8.4, 0.4,
+            f"（还有 {len(rows) - 6} 条数据，请在 Excel/Markdown 中查看完整内容）",
+            font_size=12, color=RGBColor(150, 150, 150)
+        )
+
+
 def _add_chart_slides(prs: Presentation, chart_paths: List[Path]) -> None:
     """为每个图表添加一页，避免图片溢出。"""
     for chart_path in chart_paths:
@@ -395,6 +452,15 @@ def generate_pptx(
 
     优先使用公司模板；若模板不可用，则创建一个包含基础页面的新演示文稿。
     """
+    from src.fetchers.manual_data import (
+        get_events_for_ppt,
+        get_industry_for_ppt,
+        get_labels_for_ppt,
+        load_events,
+        load_industry,
+        load_labels,
+    )
+
     report_cfg = config.get("report", {})
     pptx_cfg = config.get("pptx", {})
     title = report_cfg.get("title", "说唱音乐行业全景洞察分析报告")
@@ -422,17 +488,38 @@ def generate_pptx(
     _add_top10_slides(prs, analysis)
     _add_artist_slide(prs, analysis, ai_texts)
     _add_hit_songs_slide(prs, analysis, ai_texts)
+
+    # 手动补充数据页
+    industry_df = load_industry(config)
+    _add_manual_data_slide(
+        prs,
+        "周期内关键行业信息",
+        get_industry_for_ppt(industry_df),
+        "（暂无行业动态，可在 data/industry.csv 中补充）",
+    )
+
+    events_df = load_events(config)
+    _add_manual_data_slide(
+        prs,
+        "演出与市场动态",
+        get_events_for_ppt(events_df),
+        "（暂无演出信息，可在 data/events.csv 中补充）",
+    )
+
+    labels_df = load_labels(config)
+    _add_manual_data_slide(
+        prs,
+        "代表厂牌深度解析",
+        get_labels_for_ppt(labels_df),
+        "（暂无厂牌信息，可在 data/labels.csv 中补充）",
+    )
+
     _add_chart_slides(prs, chart_paths)
 
     _add_placeholder_slide(
         prs,
         "舆情与话题",
         ["全网舆情与话题总览", "正面/中性/负面舆情关注点"],
-    )
-    _add_placeholder_slide(
-        prs,
-        "厂牌与行业",
-        ["代表厂牌深度解析", "周期内关键行业信息", "艺人动态与商业变现"],
     )
     _add_placeholder_slide(
         prs,

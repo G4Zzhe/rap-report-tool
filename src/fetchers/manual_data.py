@@ -110,6 +110,48 @@ def format_industry_for_report(df: pd.DataFrame) -> str:
     return "\n".join(lines)
 
 
+def _df_to_bullet_rows(df: pd.DataFrame, columns: List[str], title_col: str) -> List[Tuple[str, str]]:
+    """将 DataFrame 转换为（标题，详情）列表，供 PPT 使用。"""
+    rows = []
+    for _, row in df.iterrows():
+        title = str(row.get(title_col, "")).strip()
+        if not title:
+            continue
+        details = " / ".join([str(row.get(c, "")).strip() for c in columns if str(row.get(c, "")).strip() and c != title_col])
+        rows.append((title, details))
+    return rows
+
+
+def get_events_for_ppt(df: pd.DataFrame) -> List[Tuple[str, str]]:
+    """返回演出信息（标题，详情），供 PPT 使用。"""
+    if df.empty:
+        return []
+    return _df_to_bullet_rows(df, ["date", "city", "venue", "artists", "status"], "name")
+
+
+def get_labels_for_ppt(df: pd.DataFrame) -> List[Tuple[str, str]]:
+    """返回厂牌信息（标题，详情），供 PPT 使用。"""
+    if df.empty:
+        return []
+    return _df_to_bullet_rows(df, ["focus", "artists", "highlight"], "name")
+
+
+def get_industry_for_ppt(df: pd.DataFrame) -> List[Tuple[str, str]]:
+    """返回行业动态（标题，详情），供 PPT 使用。"""
+    if df.empty:
+        return []
+    rows = []
+    for _, row in df.iterrows():
+        category = str(row.get("category", "")).strip()
+        title = str(row.get("title", "")).strip()
+        summary = str(row.get("summary", "")).strip()
+        if not title:
+            continue
+        display_title = f"[{category}] {title}" if category else title
+        rows.append((display_title, summary))
+    return rows
+
+
 def generate_manual_data_templates() -> None:
     """生成示例 CSV 模板文件。"""
     DEFAULT_DATA_DIR.mkdir(exist_ok=True)
