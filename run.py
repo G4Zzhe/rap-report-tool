@@ -60,6 +60,11 @@ def parse_args() -> argparse.Namespace:
         type=str,
         help="上一期原始榜单 CSV 路径，用于计算新歌和排名变化",
     )
+    parser.add_argument(
+        "--no-ai",
+        action="store_true",
+        help="禁用 AI 文案生成（无需 API Key，生成报告骨架）",
+    )
     return parser.parse_args()
 
 
@@ -132,8 +137,16 @@ def main() -> int:
         analysis = analyze(results, history_results)
 
         # 5. 生成 AI 文案
-        ai_writer = AIWriter(config)
-        ai_texts = ai_writer.generate_all(analysis)
+        if args.no_ai:
+            logger.info("已禁用 AI 文案生成")
+            ai_texts = {
+                "platform_summary": "",
+                "artist_insight": "",
+                "hit_songs_insight": "",
+            }
+        else:
+            ai_writer = AIWriter(config)
+            ai_texts = ai_writer.generate_all(analysis)
 
         # 6. 生成图表
         chart_paths = generate_all_charts(analysis, config)

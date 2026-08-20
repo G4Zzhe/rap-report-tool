@@ -101,7 +101,9 @@ pptx:
 
 #### 方式一：Windows 双击运行（最方便）
 
-直接双击 `run.bat`，会生成上一双周周期的报告。
+直接双击 `run.bat`，会生成上一双周周期的报告（需要配置 AI Key）。
+
+如果**没有 AI Key**，双击 `run_no_ai.bat`，会生成完整的报告骨架（Excel + 图表 + PPT），只是 AI 文案位置留空。
 
 #### 方式二：命令行运行
 
@@ -114,6 +116,12 @@ python run.py --start 2026-07-16 --end 2026-07-31
 
 # 指定历史数据，计算新歌和排名变化
 python run.py --start 2026-07-16 --end 2026-07-31 --history output/raw_20260701_20260715.csv
+
+# 禁用 AI 文案生成（无需 API Key）
+python run.py --no-ai
+
+# 指定日期 + 禁用 AI
+python run.py --start 2026-07-16 --end 2026-07-31 --no-ai
 ```
 
 运行时会自动：
@@ -143,6 +151,7 @@ python run.py --start 2026-07-16 --end 2026-07-31 --history output/raw_20260701_
 | `--start` | 报告周期开始日期（YYYY-MM-DD） | `--start 2026-07-16` |
 | `--end` | 报告周期结束日期（YYYY-MM-DD） | `--end 2026-07-31` |
 | `--history` | 上一期原始榜单 CSV 路径 | `--history output/raw_20260701_20260715.csv` |
+| `--no-ai` | 禁用 AI 文案生成 | `--no-ai` |
 
 不指定 `--start` 和 `--end` 时，默认生成上一双周周期：
 - 今天 ≥ 16 号：本月 1 日 ~ 15 日
@@ -150,19 +159,15 @@ python run.py --start 2026-07-16 --end 2026-07-31 --history output/raw_20260701_
 
 ## run.bat 用法
 
-`run.bat` 是 Windows 一键运行脚本，内容如下：
+`run.bat` 是 Windows 一键运行脚本，直接双击即可生成默认上一双周报告（需要 AI Key）。
+
+`run_no_ai.bat` 是无 AI 模式的一键脚本，直接双击即可生成报告骨架（无需 AI Key）。
+
+如果需要指定日期，可以修改 `run.bat` 或 `run_no_ai.bat` 中的命令，例如：
 
 ```bat
 @echo off
-python run.py
-pause
-```
-
-直接双击即可运行，生成默认上一双周报告。如果需要指定日期，可以修改 `run.bat` 中的命令，例如：
-
-```bat
-@echo off
-python run.py --start 2026-07-16 --end 2026-07-31
+python run.py --start 2026-07-16 --end 2026-07-31 --no-ai
 pause
 ```
 
@@ -227,11 +232,21 @@ cp config.yaml config.local.yaml
 5. 运行：`python run.py --start 开始日期 --end 结束日期`
 6. 查看 `output/` 目录输出
 
-如果不需要 AI 文案，不配置 AI Key 也能生成 Excel、图表和 PPT 骨架，只是平台总结等文案位置会留空。
+如果不需要 AI 文案，不配置 AI Key 也能生成 Excel、图表和 PPT 骨架，运行时使用 `python run.py --no-ai` 或双击 `run_no_ai.bat`。
 
 ## 常见问题
 
-### Q1: 酷狗榜单抓取为空？
+### Q1: 没有 AI Key 能运行吗？
+
+可以。使用 `--no-ai` 参数：
+
+```bash
+python run.py --no-ai
+```
+
+或双击 `run_no_ai.bat`。此时会跳过 AI 调用，生成完整的报告骨架，但平台总结、艺人洞察、爆款分析等文案位置会留空，需要人工填写。
+
+### Q2: 酷狗榜单抓取为空？
 
 酷狗说唱先锋榜详情接口需要 `rankid` 和 `rank_cid` 参数，当前代码会自动从榜单列表接口获取。如果仍然失败，可能是接口结构变化，请检查日志。
 

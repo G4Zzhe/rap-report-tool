@@ -1,7 +1,7 @@
 @echo off
 chcp 65001 > nul
 echo ==========================================
-echo  说唱音乐行业双周报自动化工具
+echo  说唱音乐行业双周报自动化工具（无 AI 模式）
 echo ==========================================
 echo.
 
@@ -30,12 +30,9 @@ if %errorlevel% neq 0 (
     exit /b 1
 )
 
-REM 运行主程序
-echo 正在运行...
-echo 提示：首次运行建议先配置 config.local.yaml 的 AI Key
-echo        如不配置，可双击 run_no_ai.bat 生成无 AI 文案的报告骨架
-echo.
-python run.py %*
+REM 运行主程序（禁用 AI）
+echo 正在运行（无 AI 文案生成）...
+python run.py --no-ai %*
 
 echo.
 echo 运行结束，按任意键退出。
