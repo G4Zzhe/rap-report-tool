@@ -13,6 +13,8 @@ from typing import Any, Dict, List, Optional, Tuple
 
 import pandas as pd
 
+from src.analysis.cleaner import build_match_key, normalize_artist, normalize_song_name
+
 logger = logging.getLogger("rap_report")
 
 
@@ -51,10 +53,13 @@ def flatten_results(results: List[Dict[str, Any]]) -> pd.DataFrame:
                 "platform": display_platform,
                 "chart_name": chart_name,
                 "rank": track.get("rank"),
-                "song_name": track.get("song_name", ""),
-                "artist": track.get("artist", ""),
+                "song_name": normalize_song_name(track.get("song_name", "")),
+                "artist": normalize_artist(track.get("artist", "")),
                 "album": track.get("album", ""),
                 "is_new": track.get("is_new", False),
+                "match_key": build_match_key(
+                    track.get("song_name", ""), track.get("artist", "")
+                ),
             })
     return pd.DataFrame(rows)
 
@@ -94,14 +99,14 @@ def song_summary(df: pd.DataFrame) -> pd.DataFrame:
         return pd.DataFrame()
 
     summary = []
-    for key, group in df.groupby(["song_name", "artist"]):
-        song_name, artist = key
+    for key, group in df.groupby("match_key"):
+        first_row = group.iloc[0]
         platforms = group["platform"].unique().tolist()
         best_rank = group["rank"].min()
         best_platform = group.loc[group["rank"].idxmin(), "platform"]
         summary.append({
-            "song_name": song_name,
-            "artist": artist,
+            "song_name": first_row["song_name"],
+            "artist": first_row["artist"],
             "platforms": ",".join(platforms),
             "platform_count": len(platforms),
             "best_rank": int(best_rank),
@@ -126,10 +131,10 @@ def new_songs_count(df: pd.DataFrame, history_df: Optional[pd.DataFrame] = None)
     if history_df is None or history_df.empty or df.empty:
         return {}
 
-    history_songs = set(zip(history_df["song_name"], history_df["artist"]))
+    history_songs = set(history_df["match_key"])
     new_counts = {}
     for platform, group in df.groupby("platform"):
-        current_songs = set(zip(group["song_name"], group["artist"]))
+        current_songs = set(group["match_key"])
         new_songs = current_songs - history_songs
         new_counts[platform] = len(new_songs)
     return new_counts
@@ -143,10 +148,10 @@ def rank_changes(df: pd.DataFrame, history_df: Optional[pd.DataFrame] = None) ->
     if history_df is None or history_df.empty or df.empty:
         return pd.DataFrame()
 
-    history = history_df.set_index(["song_name", "artist", "platform"])["rank"].to_dict()
+    history = history_df.set_index(["match_key", "platform"])["rank"].to_dict()
     changes = []
     for _, row in df.iterrows():
-        key = (row["song_name"], row["artist"], row["platform"])
+        key = (row["match_key"], row["platform"])
         prev_rank = history.get(key)
         if prev_rank is not None:
             change = prev_rank - row["rank"]

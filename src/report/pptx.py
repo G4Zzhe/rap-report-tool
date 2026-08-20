@@ -14,11 +14,11 @@
 import logging
 from datetime import datetime
 from pathlib import Path
-from typing import Any, Dict, List, Optional, Tuple
+from typing import Any, Dict, List, Optional
 
 from pptx import Presentation
 from pptx.dml.color import RGBColor
-from pptx.enum.text import PP_ALIGN
+from pptx.enum.text import MSO_ANCHOR, PP_ALIGN
 from pptx.util import Inches, Pt
 
 from src.utils import OUTPUT_DIR
@@ -27,6 +27,14 @@ logger = logging.getLogger("rap_report")
 
 # 模板路径（Windows 路径，WSL 下映射为 /mnt/d/...）
 DEFAULT_TEMPLATE_PATH = Path("/mnt/d/G4Zzz/工作文档/神速信息_说唱音乐行业全景洞察分析报告（2026.7.16-7.31）.pptx")
+
+# 配色方案（与公司模板主色调对齐）
+PRIMARY_COLOR = RGBColor(31, 78, 153)      # 深蓝
+SECONDARY_COLOR = RGBColor(245, 166, 35)   # 橙黄
+ACCENT_RED = RGBColor(233, 75, 60)         # 红色强调
+TEXT_DARK = RGBColor(51, 51, 51)           # 深灰正文
+TEXT_LIGHT = RGBColor(255, 255, 255)       # 白色
+BG_LIGHT = RGBColor(240, 244, 248)         # 浅灰背景
 
 
 def _format_period(start_date: str, end_date: str) -> str:
@@ -39,22 +47,6 @@ def _format_period(start_date: str, end_date: str) -> str:
         return f"报告周期：{start_date} - {end_date}"
 
 
-def _find_shape_by_text(slide, keyword: str) -> Optional[Any]:
-    """在幻灯片中查找包含指定关键词的第一个文本形状。"""
-    for shape in slide.shapes:
-        if shape.has_text_frame and keyword in shape.text_frame.text:
-            return shape
-    return None
-
-
-def _set_text(shape: Any, text: str) -> None:
-    """设置形状文本，保留原有格式。"""
-    if not shape or not shape.has_text_frame:
-        return
-    tf = shape.text_frame
-    tf.text = text
-
-
 def _get_blank_layout(prs: Presentation):
     """获取空白布局，兼容不同模板。"""
     for layout in prs.slide_layouts:
@@ -63,78 +55,106 @@ def _get_blank_layout(prs: Presentation):
     return prs.slide_layouts[-1]
 
 
+def _add_text_box(
+    slide,
+    left: float,
+    top: float,
+    width: float,
+    height: float,
+    text: str,
+    font_size: int = 18,
+    bold: bool = False,
+    color: RGBColor = TEXT_DARK,
+    align: PP_ALIGN = PP_ALIGN.LEFT,
+    font_name: str = "Microsoft YaHei",
+) -> Any:
+    """统一添加文本框并设置格式。"""
+    box = slide.shapes.add_textbox(Inches(left), Inches(top), Inches(width), Inches(height))
+    tf = box.text_frame
+    tf.word_wrap = True
+    p = tf.paragraphs[0]
+    p.text = text
+    p.font.size = Pt(font_size)
+    p.font.bold = bold
+    p.font.color.rgb = color
+    p.font.name = font_name
+    p.alignment = align
+    return box
+
+
 def _add_title_slide(prs: Presentation, title: str, subtitle: str, period: str) -> None:
     """添加封面页。"""
     layout = _get_blank_layout(prs)
     slide = prs.slides.add_slide(layout)
 
-    # 标题
-    title_box = slide.shapes.add_textbox(
-        Inches(1.0), Inches(2.2), Inches(8.0), Inches(1.5)
+    # 顶部装饰条
+    bar = slide.shapes.add_shape(
+        1, Inches(0), Inches(0), Inches(10), Inches(0.15)
     )
-    tf = title_box.text_frame
-    tf.text = title
-    p = tf.paragraphs[0]
-    p.font.size = Pt(44)
-    p.font.bold = True
-    p.font.color.rgb = RGBColor(31, 78, 153)
-    p.alignment = PP_ALIGN.CENTER
+    bar.fill.solid()
+    bar.fill.fore_color.rgb = SECONDARY_COLOR
+    bar.line.fill.background()
 
-    # 副标题
-    sub_box = slide.shapes.add_textbox(
-        Inches(1.0), Inches(4.0), Inches(8.0), Inches(1.0)
+    _add_text_box(
+        slide, 0.8, 2.0, 8.4, 1.4,
+        title, font_size=44, bold=True, color=PRIMARY_COLOR, align=PP_ALIGN.CENTER
     )
-    tf = sub_box.text_frame
-    tf.text = subtitle
-    p = tf.paragraphs[0]
-    p.font.size = Pt(20)
-    p.font.color.rgb = RGBColor(80, 80, 80)
-    p.alignment = PP_ALIGN.CENTER
+    _add_text_box(
+        slide, 0.8, 3.6, 8.4, 0.8,
+        subtitle, font_size=20, bold=False, color=TEXT_DARK, align=PP_ALIGN.CENTER
+    )
+    _add_text_box(
+        slide, 0.8, 4.7, 8.4, 0.5,
+        period, font_size=18, bold=False, color=RGBColor(100, 100, 100), align=PP_ALIGN.CENTER
+    )
 
-    # 周期
-    period_box = slide.shapes.add_textbox(
-        Inches(1.0), Inches(5.2), Inches(8.0), Inches(0.6)
+
+def _add_section_header(slide, title: str) -> None:
+    """为页面添加统一的章节标题栏。"""
+    # 左侧色块
+    accent = slide.shapes.add_shape(
+        1, Inches(0.4), Inches(0.45), Inches(0.12), Inches(0.65)
     )
-    tf = period_box.text_frame
-    tf.text = period
-    p = tf.paragraphs[0]
-    p.font.size = Pt(18)
-    p.font.color.rgb = RGBColor(100, 100, 100)
-    p.alignment = PP_ALIGN.CENTER
+    accent.fill.solid()
+    accent.fill.fore_color.rgb = SECONDARY_COLOR
+    accent.line.fill.background()
+
+    _add_text_box(
+        slide, 0.7, 0.45, 8.5, 0.7,
+        title, font_size=28, bold=True, color=PRIMARY_COLOR
+    )
 
 
 def _add_overview_slide(prs: Presentation, analysis: Dict[str, Any], start_date: str, end_date: str) -> None:
     """添加数据概览页。"""
     layout = _get_blank_layout(prs)
     slide = prs.slides.add_slide(layout)
-
-    title_box = slide.shapes.add_textbox(
-        Inches(0.5), Inches(0.5), Inches(9.0), Inches(0.8)
-    )
-    tf = title_box.text_frame
-    tf.text = "数据概览"
-    p = tf.paragraphs[0]
-    p.font.size = Pt(32)
-    p.font.bold = True
-    p.font.color.rgb = RGBColor(31, 78, 153)
+    _add_section_header(slide, "数据概览")
 
     stats = [
-        ("本期采集歌曲", f"{analysis['total_songs']} 首"),
-        ("涉及平台", f"{analysis['total_platforms']} 个"),
-        ("头部艺人数量", f"{len(analysis['artist_summary'])}"),
-        ("跨平台爆款", f"{len(analysis['cross_platform_hits'])} 首"),
-        ("报告周期", f"{start_date} 至 {end_date}"),
+        ("本期采集歌曲", f"{analysis['total_songs']} 首", PRIMARY_COLOR),
+        ("涉及平台", f"{analysis['total_platforms']} 个", SECONDARY_COLOR),
+        ("头部艺人数量", f"{len(analysis['artist_summary'])}", PRIMARY_COLOR),
+        ("跨平台爆款", f"{len(analysis['cross_platform_hits'])} 首", SECONDARY_COLOR),
+        ("报告周期", f"{start_date} 至 {end_date}", TEXT_DARK),
     ]
 
-    top = 1.6
-    for label, value in stats:
-        box = slide.shapes.add_textbox(Inches(1.0), Inches(top), Inches(8.0), Inches(0.6))
-        tf = box.text_frame
-        tf.text = f"{label}：{value}"
-        p = tf.paragraphs[0]
-        p.font.size = Pt(24)
-        p.font.color.rgb = RGBColor(50, 50, 50)
-        top += 0.8
+    top = 1.5
+    for label, value, color in stats:
+        # 卡片背景
+        card = slide.shapes.add_shape(
+            1, Inches(0.8), Inches(top), Inches(8.4), Inches(0.75)
+        )
+        card.fill.solid()
+        card.fill.fore_color.rgb = BG_LIGHT
+        card.line.color.rgb = RGBColor(220, 220, 220)
+
+        _add_text_box(slide, 1.0, top + 0.15, 4.0, 0.5, label, font_size=18, color=TEXT_DARK)
+        _add_text_box(
+            slide, 5.5, top + 0.1, 3.5, 0.6,
+            value, font_size=24, bold=True, color=color, align=PP_ALIGN.RIGHT
+        )
+        top += 1.0
 
 
 def _add_platform_summary_slide(
@@ -145,27 +165,28 @@ def _add_platform_summary_slide(
     """添加平台榜单总结页。"""
     layout = _get_blank_layout(prs)
     slide = prs.slides.add_slide(layout)
-
-    title_box = slide.shapes.add_textbox(
-        Inches(0.5), Inches(0.5), Inches(9.0), Inches(0.8)
-    )
-    tf = title_box.text_frame
-    tf.text = "平台榜单总结"
-    p = tf.paragraphs[0]
-    p.font.size = Pt(32)
-    p.font.bold = True
-    p.font.color.rgb = RGBColor(31, 78, 153)
+    _add_section_header(slide, "平台榜单总结")
 
     content = ai_texts.get("platform_summary") or "（AI 文案未生成）"
-    content_box = slide.shapes.add_textbox(
-        Inches(0.8), Inches(1.5), Inches(8.4), Inches(2.5)
+    # 去除 Markdown 加粗标记
+    content = content.replace("**", "")
+
+    _add_text_box(
+        slide, 0.7, 1.4, 8.6, 4.5,
+        content, font_size=16, color=TEXT_DARK
     )
-    tf = content_box.text_frame
-    tf.text = content
-    tf.word_wrap = True
-    for paragraph in tf.paragraphs:
-        paragraph.font.size = Pt(16)
-        paragraph.font.color.rgb = RGBColor(60, 60, 60)
+
+
+def _style_table_header(table, cols: int) -> None:
+    """统一设置表头样式。"""
+    for col in range(cols):
+        cell = table.cell(0, col)
+        cell.fill.solid()
+        cell.fill.fore_color.rgb = PRIMARY_COLOR
+        p = cell.text_frame.paragraphs[0]
+        p.font.color.rgb = TEXT_LIGHT
+        p.font.bold = True
+        p.font.size = Pt(12)
 
 
 def _add_top10_slides(prs: Presentation, analysis: Dict[str, Any]) -> None:
@@ -177,37 +198,22 @@ def _add_top10_slides(prs: Presentation, analysis: Dict[str, Any]) -> None:
     for chart_name, group in raw.groupby("chart_name"):
         layout = _get_blank_layout(prs)
         slide = prs.slides.add_slide(layout)
-
-        title_box = slide.shapes.add_textbox(
-            Inches(0.5), Inches(0.4), Inches(9.0), Inches(0.7)
-        )
-        tf = title_box.text_frame
-        tf.text = f"{chart_name} TOP10"
-        p = tf.paragraphs[0]
-        p.font.size = Pt(28)
-        p.font.bold = True
-        p.font.color.rgb = RGBColor(31, 78, 153)
+        _add_section_header(slide, f"{chart_name} TOP10")
 
         top10 = group.nsmallest(10, "rank")[["rank", "song_name", "artist"]]
         rows = len(top10)
         cols = 3
-        left = Inches(0.8)
-        top = Inches(1.3)
-        width = Inches(8.4)
-        height = Inches(0.5 * rows + 0.2)
+        left = Inches(0.7)
+        top = Inches(1.35)
+        width = Inches(8.6)
+        height = Inches(0.45 * rows + 0.2)
 
         table = slide.shapes.add_table(rows + 1, cols, left, top, width, height).table
+        _style_table_header(table, cols)
 
-        # 表头
         headers = ["排名", "歌曲", "艺人"]
         for i, header in enumerate(headers):
-            cell = table.cell(0, i)
-            cell.text = header
-            cell.text_frame.paragraphs[0].font.bold = True
-            cell.text_frame.paragraphs[0].font.size = Pt(14)
-            cell.fill.solid()
-            cell.fill.fore_color.rgb = RGBColor(31, 78, 153)
-            cell.text_frame.paragraphs[0].font.color.rgb = RGBColor(255, 255, 255)
+            table.cell(0, i).text = header
 
         for idx, (_, row) in enumerate(top10.iterrows(), start=1):
             table.cell(idx, 0).text = str(int(row["rank"]))
@@ -215,34 +221,24 @@ def _add_top10_slides(prs: Presentation, analysis: Dict[str, Any]) -> None:
             table.cell(idx, 2).text = str(row["artist"])
             for col in range(cols):
                 cell = table.cell(idx, col)
-                cell.text_frame.paragraphs[0].font.size = Pt(12)
+                p = cell.text_frame.paragraphs[0]
+                p.font.size = Pt(11)
+                p.font.color.rgb = TEXT_DARK
 
 
 def _add_artist_slide(prs: Presentation, analysis: Dict[str, Any], ai_texts: Dict[str, str]) -> None:
     """添加头部艺人表现页。"""
     layout = _get_blank_layout(prs)
     slide = prs.slides.add_slide(layout)
-
-    title_box = slide.shapes.add_textbox(
-        Inches(0.5), Inches(0.5), Inches(9.0), Inches(0.8)
-    )
-    tf = title_box.text_frame
-    tf.text = "头部艺人表现"
-    p = tf.paragraphs[0]
-    p.font.size = Pt(32)
-    p.font.bold = True
-    p.font.color.rgb = RGBColor(31, 78, 153)
+    _add_section_header(slide, "头部艺人表现")
 
     content = ai_texts.get("artist_insight") or "（AI 文案未生成）"
-    content_box = slide.shapes.add_textbox(
-        Inches(0.8), Inches(1.4), Inches(8.4), Inches(1.8)
+    content = content.replace("**", "")
+
+    _add_text_box(
+        slide, 0.7, 1.3, 8.6, 1.6,
+        content, font_size=15, color=TEXT_DARK
     )
-    tf = content_box.text_frame
-    tf.text = content
-    tf.word_wrap = True
-    for paragraph in tf.paragraphs:
-        paragraph.font.size = Pt(16)
-        paragraph.font.color.rgb = RGBColor(60, 60, 60)
 
     artist_df = analysis["artist_summary"].head(10)
     if artist_df.empty:
@@ -250,21 +246,17 @@ def _add_artist_slide(prs: Presentation, analysis: Dict[str, Any], ai_texts: Dic
 
     rows = len(artist_df)
     cols = 5
-    left = Inches(0.5)
-    top = Inches(3.4)
-    width = Inches(9.0)
-    height = Inches(0.45 * rows + 0.2)
+    left = Inches(0.4)
+    top = Inches(3.1)
+    width = Inches(9.2)
+    height = Inches(0.38 * rows + 0.2)
 
     table = slide.shapes.add_table(rows + 1, cols, left, top, width, height).table
+    _style_table_header(table, cols)
+
     headers = ["艺人", "总上榜数", "平台数", "最佳排名", "最佳歌曲"]
     for i, header in enumerate(headers):
-        cell = table.cell(0, i)
-        cell.text = header
-        cell.text_frame.paragraphs[0].font.bold = True
-        cell.text_frame.paragraphs[0].font.size = Pt(12)
-        cell.fill.solid()
-        cell.fill.fore_color.rgb = RGBColor(31, 78, 153)
-        cell.text_frame.paragraphs[0].font.color.rgb = RGBColor(255, 255, 255)
+        table.cell(0, i).text = header
 
     for idx, (_, row) in enumerate(artist_df.iterrows(), start=1):
         table.cell(idx, 0).text = str(row["artist"])
@@ -273,61 +265,47 @@ def _add_artist_slide(prs: Presentation, analysis: Dict[str, Any], ai_texts: Dic
         table.cell(idx, 3).text = str(int(row["best_rank"]))
         table.cell(idx, 4).text = str(row["best_song"])
         for col in range(cols):
-            table.cell(idx, col).text_frame.paragraphs[0].font.size = Pt(11)
+            cell = table.cell(idx, col)
+            p = cell.text_frame.paragraphs[0]
+            p.font.size = Pt(10)
+            p.font.color.rgb = TEXT_DARK
 
 
 def _add_hit_songs_slide(prs: Presentation, analysis: Dict[str, Any], ai_texts: Dict[str, str]) -> None:
     """添加跨平台爆款页。"""
     layout = _get_blank_layout(prs)
     slide = prs.slides.add_slide(layout)
-
-    title_box = slide.shapes.add_textbox(
-        Inches(0.5), Inches(0.5), Inches(9.0), Inches(0.8)
-    )
-    tf = title_box.text_frame
-    tf.text = "跨平台爆款歌曲"
-    p = tf.paragraphs[0]
-    p.font.size = Pt(32)
-    p.font.bold = True
-    p.font.color.rgb = RGBColor(31, 78, 153)
+    _add_section_header(slide, "跨平台爆款歌曲")
 
     content = ai_texts.get("hit_songs_insight") or "（AI 文案未生成）"
-    content_box = slide.shapes.add_textbox(
-        Inches(0.8), Inches(1.4), Inches(8.4), Inches(1.5)
+    content = content.replace("**", "")
+
+    _add_text_box(
+        slide, 0.7, 1.3, 8.6, 1.4,
+        content, font_size=15, color=TEXT_DARK
     )
-    tf = content_box.text_frame
-    tf.text = content
-    tf.word_wrap = True
-    for paragraph in tf.paragraphs:
-        paragraph.font.size = Pt(16)
-        paragraph.font.color.rgb = RGBColor(60, 60, 60)
 
     hits_df = analysis["cross_platform_hits"]
     if hits_df.empty:
-        info = slide.shapes.add_textbox(
-            Inches(0.8), Inches(3.2), Inches(8.4), Inches(0.8)
+        _add_text_box(
+            slide, 0.7, 3.0, 8.6, 0.8,
+            "本期暂无跨平台爆款歌曲。", font_size=18, color=TEXT_DARK
         )
-        info.text_frame.text = "本期暂无跨平台爆款歌曲。"
-        info.text_frame.paragraphs[0].font.size = Pt(18)
         return
 
     rows = len(hits_df)
     cols = 4
-    left = Inches(1.0)
-    top = Inches(3.2)
-    width = Inches(8.0)
-    height = Inches(0.5 * rows + 0.2)
+    left = Inches(0.8)
+    top = Inches(2.9)
+    width = Inches(8.4)
+    height = Inches(0.45 * rows + 0.2)
 
     table = slide.shapes.add_table(rows + 1, cols, left, top, width, height).table
+    _style_table_header(table, cols)
+
     headers = ["歌曲", "艺人", "上榜平台数", "最佳排名"]
     for i, header in enumerate(headers):
-        cell = table.cell(0, i)
-        cell.text = header
-        cell.text_frame.paragraphs[0].font.bold = True
-        cell.text_frame.paragraphs[0].font.size = Pt(14)
-        cell.fill.solid()
-        cell.fill.fore_color.rgb = RGBColor(31, 78, 153)
-        cell.text_frame.paragraphs[0].font.color.rgb = RGBColor(255, 255, 255)
+        table.cell(0, i).text = header
 
     for idx, (_, row) in enumerate(hits_df.iterrows(), start=1):
         table.cell(idx, 0).text = str(row["song_name"])
@@ -335,7 +313,10 @@ def _add_hit_songs_slide(prs: Presentation, analysis: Dict[str, Any], ai_texts: 
         table.cell(idx, 2).text = str(int(row["platform_count"]))
         table.cell(idx, 3).text = str(int(row["best_rank"]))
         for col in range(cols):
-            table.cell(idx, col).text_frame.paragraphs[0].font.size = Pt(12)
+            cell = table.cell(idx, col)
+            p = cell.text_frame.paragraphs[0]
+            p.font.size = Pt(11)
+            p.font.color.rgb = TEXT_DARK
 
 
 def _add_chart_slides(prs: Presentation, chart_paths: List[Path]) -> None:
@@ -346,20 +327,13 @@ def _add_chart_slides(prs: Presentation, chart_paths: List[Path]) -> None:
         layout = _get_blank_layout(prs)
         slide = prs.slides.add_slide(layout)
 
-        title_box = slide.shapes.add_textbox(
-            Inches(0.5), Inches(0.4), Inches(9.0), Inches(0.7)
-        )
-        tf = title_box.text_frame
-        tf.text = chart_path.stem.replace("chart_", "").replace("_", " ").title()
-        p = tf.paragraphs[0]
-        p.font.size = Pt(28)
-        p.font.bold = True
-        p.font.color.rgb = RGBColor(31, 78, 153)
+        title = chart_path.stem.replace("chart_", "").replace("_", " ").title()
+        _add_section_header(slide, title)
 
         slide.shapes.add_picture(
             str(chart_path),
             Inches(1.0),
-            Inches(1.3),
+            Inches(1.4),
             width=Inches(8.0),
         )
 
@@ -368,28 +342,21 @@ def _add_placeholder_slide(prs: Presentation, section: str, items: List[str]) ->
     """添加待人工补充的章节提示页。"""
     layout = _get_blank_layout(prs)
     slide = prs.slides.add_slide(layout)
+    _add_section_header(slide, f"{section}（待补充）")
 
-    title_box = slide.shapes.add_textbox(
-        Inches(0.5), Inches(0.5), Inches(9.0), Inches(0.8)
-    )
-    tf = title_box.text_frame
-    tf.text = f"{section}（待补充）"
-    p = tf.paragraphs[0]
-    p.font.size = Pt(28)
-    p.font.bold = True
-    p.font.color.rgb = RGBColor(200, 80, 80)
-
-    top = 1.6
+    top = 1.5
     for item in items:
-        box = slide.shapes.add_textbox(
-            Inches(1.0), Inches(top), Inches(8.0), Inches(0.5)
+        _add_text_box(
+            slide, 0.9, top, 8.4, 0.5,
+            f"• {item}", font_size=18, color=TEXT_DARK
         )
-        tf = box.text_frame
-        tf.text = f"• {item}"
-        p = tf.paragraphs[0]
-        p.font.size = Pt(18)
-        p.font.color.rgb = RGBColor(80, 80, 80)
-        top += 0.6
+        top += 0.65
+
+    _add_text_box(
+        slide, 0.9, top + 0.3, 8.4, 0.8,
+        "提示：此部分数据目前依赖人工整理，可在后续版本中接入舆情/厂牌/演出等数据源。",
+        font_size=14, color=RGBColor(150, 150, 150)
+    )
 
 
 def generate_pptx(
@@ -420,7 +387,6 @@ def generate_pptx(
         prs.slide_height = Inches(7.5)
         logger.warning("PPT 模板未找到，使用空白演示文稿: %s", template)
 
-    # 删除模板中已有的占位内容页（可选），保留原有结构，追加自动化页面
     _add_title_slide(prs, title, subtitle, period)
     _add_overview_slide(prs, analysis, start_date, end_date)
     _add_platform_summary_slide(prs, analysis, ai_texts)
@@ -429,7 +395,6 @@ def generate_pptx(
     _add_hit_songs_slide(prs, analysis, ai_texts)
     _add_chart_slides(prs, chart_paths)
 
-    # 待人工补充的章节提示
     _add_placeholder_slide(
         prs,
         "舆情与话题",
