@@ -1,35 +1,64 @@
 @echo off
 chcp 65001 > nul
+cls
 echo ==========================================
 echo  说唱音乐行业双周报自动化工具（无 AI 模式）
 echo ==========================================
 echo.
 
-echo [调试] 当前目录：%cd%
-pause
-
-REM 检查 Python
-where python > nul 2> nul
-if %errorlevel% neq 0 (
-    echo [错误] 未找到 python，请安装 Python 3.10 或更高版本。
-    echo        下载地址：https://www.python.org/downloads/
+REM 检查是否在 WSL 网络路径下运行
+set "CURRENT_DIR=%cd%"
+echo %CURRENT_DIR% | findstr /I "\\\\wsl.localhost\\" > nul
+if %errorlevel% equ 0 (
+    echo [错误] 检测到当前目录位于 WSL 子系统路径中。
+    echo        Windows 双击运行需要把项目复制到 Windows 本地目录，例如：
+    echo        D:\\rap-report-tool
+    echo.
+    echo        操作步骤：
+    echo        1. 在 Windows 资源管理器中，把项目文件夹复制到 D 盘
+    echo        2. 进入 D:\\rap-report-tool 目录
+    echo        3. 双击 run_no_ai.bat 运行
     pause
     exit /b 1
 )
 
-echo [调试] Python 版本：
+echo [信息] 当前目录：%CURRENT_DIR%
+
+REM 检查 Python
+where python > nul 2> nul
+if %errorlevel% neq 0 (
+    echo.
+    echo [错误] 未找到 Python。
+    echo.
+    echo 本工具需要 Python 3.11 或更高版本才能运行。
+    echo.
+    echo 请按以下步骤安装：
+    echo   1. 访问 https://www.python.org/downloads/
+    echo   2. 下载 Python 3.11 或更高版本
+    echo   3. 安装时务必勾选 "Add Python to PATH"
+    echo   4. 安装完成后，重新双击本文件
+    echo.
+    echo 安装教程：https://docs.python.org/3/using/windows.html
+    pause
+    exit /b 1
+)
+
+echo [信息] Python 版本：
 python --version
-pause
+echo.
 
 REM 检查虚拟环境
 if not exist "venv\Scripts\activate.bat" (
-    echo 正在创建虚拟环境...
+    echo [信息] 正在创建虚拟环境，请稍候...
     python -m venv venv
     if %errorlevel% neq 0 (
         echo [错误] 虚拟环境创建失败。
         pause
         exit /b 1
     )
+    echo [信息] 虚拟环境创建完成。
+) else (
+    echo [信息] 虚拟环境已存在。
 )
 
 call venv\Scripts\activate.bat
@@ -40,23 +69,30 @@ if %errorlevel% neq 0 (
 )
 
 REM 安装/更新依赖
-echo 正在检查依赖...
+echo [信息] 正在检查并安装依赖，请稍候...
 pip install -q -r requirements.txt
 if %errorlevel% neq 0 (
-    echo [错误] 依赖安装失败。
+    echo [错误] 依赖安装失败，请检查网络连接。
     pause
     exit /b 1
 )
+echo [信息] 依赖检查完成。
+echo.
 
 REM 运行主程序（禁用 AI）
-echo 正在运行（无 AI 文案生成）...
+echo [信息] 正在生成报告...
 python run.py --no-ai
 if %errorlevel% neq 0 (
+    echo.
     echo [错误] 程序运行失败，错误码：%errorlevel%
+    echo        请截图上述错误信息并反馈给开发者。
     pause
     exit /b 1
 )
 
 echo.
-echo 运行结束，按任意键退出。
+echo [信息] 报告生成完成！
+echo [信息] 请在 output 文件夹中查看生成的报告文件。
+echo.
+echo 按任意键退出...
 pause > nul
