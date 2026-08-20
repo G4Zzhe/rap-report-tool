@@ -7,6 +7,15 @@ from pathlib import Path
 from typing import Any, Dict, List
 
 from src.fetchers.hot_search import format_hot_search_for_report
+from src.fetchers.manual_data import (
+    format_events_for_report,
+    format_industry_for_report,
+    format_labels_for_report,
+    generate_manual_data_templates,
+    load_events,
+    load_industry,
+    load_labels,
+)
 from src.utils import OUTPUT_DIR
 
 logger = logging.getLogger("rap_report")
@@ -43,8 +52,15 @@ def generate_markdown(
         lines.append("（未启用热搜抓取，请人工补充舆情内容）")
     lines.append("\n---\n")
 
+    # 行业动态（手动补充）
+    generate_manual_data_templates()
+    industry_df = load_industry(config)
+    lines.append("## 二、周期内关键行业信息\n")
+    lines.append(format_industry_for_report(industry_df))
+    lines.append("\n---\n")
+
     # 概览
-    lines.append("## 二、数据概览\n")
+    lines.append("## 三、数据概览\n")
     lines.append(f"- 本期共采集 {analysis['total_songs']} 首歌曲")
     lines.append(f"- 涉及 {analysis['total_platforms']} 个平台")
     lines.append(f"- 头部艺人数量：{len(analysis['artist_summary'])}")
@@ -55,7 +71,7 @@ def generate_markdown(
     lines.append("\n---\n")
 
     # 平台榜单总结
-    lines.append("## 三、平台榜单总结\n")
+    lines.append("## 四、平台榜单总结\n")
     if ai_texts.get("platform_summary"):
         lines.append(ai_texts["platform_summary"])
     else:
@@ -75,7 +91,7 @@ def generate_markdown(
             lines.append("\n")
 
     # 头部艺人
-    lines.append("## 四、头部艺人表现\n")
+    lines.append("## 五、头部艺人表现\n")
     if ai_texts.get("artist_insight"):
         lines.append(ai_texts["artist_insight"])
     else:
@@ -91,7 +107,7 @@ def generate_markdown(
         lines.append("\n")
 
     # 跨平台爆款
-    lines.append("## 五、跨平台爆款歌曲\n")
+    lines.append("## 六、跨平台爆款歌曲\n")
     if ai_texts.get("hit_songs_insight"):
         lines.append(ai_texts["hit_songs_insight"])
     else:
@@ -108,9 +124,21 @@ def generate_markdown(
     else:
         lines.append("本期暂无跨平台爆款歌曲。\n")
 
+    # 演出信息（手动补充）
+    events_df = load_events(config)
+    lines.append("## 七、演出与市场动态\n")
+    lines.append(format_events_for_report(events_df))
+    lines.append("\n---\n")
+
+    # 厂牌信息（手动补充）
+    labels_df = load_labels(config)
+    lines.append("## 八、代表厂牌深度解析\n")
+    lines.append(format_labels_for_report(labels_df))
+    lines.append("\n---\n")
+
     # 图表
     if chart_paths:
-        lines.append("## 六、可视化图表\n")
+        lines.append("## 九、可视化图表\n")
         for chart_path in chart_paths:
             rel_path = chart_path.name
             lines.append(f"### {chart_path.stem}")
@@ -119,12 +147,9 @@ def generate_markdown(
 
     # 待人工补充
     lines.append("---\n")
-    lines.append("## 七、待人工补充内容\n")
-    lines.append("- [ ] 全网舆情与话题总览")
-    lines.append("- [ ] 正面/中性/负面舆情关注点")
-    lines.append("- [ ] 代表厂牌深度解析")
-    lines.append("- [ ] 周期内关键行业信息")
-    lines.append("- [ ] 艺人动态与商业变现")
+    lines.append("## 十、待人工补充内容\n")
+    lines.append("- [ ] 正面/中性/负面舆情关注点细分")
+    lines.append("- [ ] 艺人动态与商业变现细节")
     lines.append("- [ ] 产业链与资本动态")
     lines.append("- [ ] 政策监管与合规")
     lines.append("- [ ] 风险机遇与策略建议")

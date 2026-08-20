@@ -44,6 +44,12 @@ hot_search:
 pptx:
   template_path: ""  # 例如：D:\\G4Zzz\\工作文档目录\\神速信息_说唱音乐行业全景洞察分析报告（2026.7.16-7.31）.pptx
 
+# 手动维护数据配置（演出/厂牌/行业动态）
+manual_data:
+  events_path: "data/events.csv"      # 演出信息
+  labels_path: "data/labels.csv"      # 厂牌信息
+  industry_path: "data/industry.csv"  # 行业动态/舆情补充
+
 # 平台榜单 URL 或 ID
 platforms:
   netease_chinese:

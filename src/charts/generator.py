@@ -254,8 +254,58 @@ class ChartGenerator:
         plt.tight_layout()
         return self.save(fig, "chart_rank_changes.png")
 
+    def hot_search_wordcloud(self, hot_search_results: List[Dict[str, Any]]) -> Optional[Path]:
+        """生成热搜话题词云图。"""
+        topics: List[str] = []
+        for result in hot_search_results or []:
+            if result.get("success"):
+                for topic in result.get("topics", []):
+                    word = topic.get("topic", "")
+                    if word:
+                        # 简单重复次数模拟权重
+                        count = max(1, min(5, len(word) // 4))
+                        topics.extend([word] * count)
 
-def generate_all_charts(analysis: Dict[str, Any], config: Dict[str, Any]) -> List[Path]:
+        if not topics:
+            return None
+
+        from matplotlib.patches import Rectangle
+
+        fig, ax = plt.subplots(figsize=(10, 6))
+        ax.set_xlim(0, 10)
+        ax.set_ylim(0, 6)
+        ax.axis("off")
+
+        freq: Dict[str, int] = {}
+        for t in topics:
+            freq[t] = freq.get(t, 0) + 1
+        sorted_words = sorted(freq.items(), key=lambda x: x[1], reverse=True)[:30]
+
+        positions = [(x, y) for x in np.linspace(0.5, 9.5, 6) for y in np.linspace(0.5, 5.5, 5)]
+        colors = [self.brand_color, self.secondary_color, self.negative_color, "#4caf50", "#9c27b0"]
+        for i, (word, count) in enumerate(sorted_words):
+            if i >= len(positions):
+                break
+            x, y = positions[i]
+            size = min(24, 8 + count * 3)
+            color = colors[i % len(colors)]
+            ax.text(
+                x, y, word, fontsize=size, color=color, ha="center", va="center",
+                fontproperties=_CHINESE_FONT_PROP, alpha=0.85,
+                bbox=dict(boxstyle="round,pad=0.3", facecolor="white", edgecolor=color, alpha=0.3),
+            )
+
+        ax.set_title("说唱相关热搜话题", fontsize=16, fontweight="bold")
+        ax.title.set_fontproperties(_CHINESE_FONT_PROP)
+        plt.tight_layout()
+        return self.save(fig, "chart_hot_search_wordcloud.png")
+
+
+def generate_all_charts(
+    analysis: Dict[str, Any],
+    config: Dict[str, Any],
+    hot_search_results: Optional[List[Dict[str, Any]]] = None,
+) -> List[Path]:
     """根据分析结果生成所有可用图表。"""
     gen = ChartGenerator(config)
     paths = []
@@ -288,6 +338,11 @@ def generate_all_charts(analysis: Dict[str, Any], config: Dict[str, Any]) -> Lis
 
     if not analysis["rank_changes"].empty:
         p = gen.rank_changes(analysis["rank_changes"])
+        if p:
+            paths.append(p)
+
+    if hot_search_results:
+        p = gen.hot_search_wordcloud(hot_search_results)
         if p:
             paths.append(p)
 

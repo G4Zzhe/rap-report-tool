@@ -73,17 +73,50 @@ class HotSearchFetcher:
     def fetch_weibo(self) -> Dict[str, Any]:
         """抓取微博热搜。
 
-        微博反爬严格，需要有效 Cookie。当前返回占位提示。
+        使用微博公开接口：https://weibo.com/ajax/side/hotSearch
+        通过移动端 User-Agent 可获取完整热搜列表，无需登录。
         """
-        return {
+        result: Dict[str, Any] = {
             "platform": "weibo",
             "topics": [],
             "success": False,
-            "error": (
-                "微博热搜需要登录 Cookie，当前未配置。"
-                "可手动抓取后将 Cookie 写入 config.local.yaml 的 hot_search.weibo_cookie。"
-            ),
+            "error": None,
         }
+        try:
+            # 移动端 UA 可绕过登录限制
+            headers = {
+                "User-Agent": (
+                    "Mozilla/5.0 (iPhone; CPU iPhone OS 14_0 like Mac OS X) "
+                    "AppleWebKit/605.1.15 (KHTML, like Gecko) Version/14.0 Mobile/15E148 Safari/604.1"
+                ),
+                "Referer": "https://weibo.com/",
+            }
+            resp = self.session.get(
+                "https://weibo.com/ajax/side/hotSearch", headers=headers, timeout=15
+            )
+            resp.raise_for_status()
+            data = resp.json()
+            items = data.get("data", {}).get("realtime", [])
+            topics = []
+            for item in items:
+                word = item.get("word", "")
+                if any(k in word for k in self.keywords):
+                    topics.append({
+                        "rank": item.get("rank", item.get("realpos", "-")),
+                        "topic": word,
+                        "hot_value": item.get("raw_hot") or item.get("hot", 0),
+                        "label": item.get("category", ""),
+                    })
+            result["topics"] = topics
+            result["success"] = True
+            logger.info("微博热搜抓取完成，共 %d 条，说唱相关 %d 条", len(items), len(topics))
+        except requests.exceptions.RequestException as e:
+            result["error"] = f"网络请求失败: {e}"
+            logger.error("微博热搜请求失败: %s", e)
+        except Exception as e:
+            result["error"] = f"解析失败: {e}"
+            logger.error("微博热搜解析失败: %s", e)
+        return result
 
 
 def fetch_hot_search(config: Dict[str, Any]) -> List[Dict[str, Any]]:

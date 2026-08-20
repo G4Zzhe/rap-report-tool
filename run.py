@@ -149,7 +149,7 @@ def main() -> int:
             ai_texts = ai_writer.generate_all(analysis)
 
         # 6. 生成图表
-        chart_paths = generate_all_charts(analysis, config)
+        chart_paths = generate_all_charts(analysis, config, hot_search_results=hot_search_results)
 
         # 7. 生成 Excel
         excel_path = generate_excel(analysis, start_date, end_date)

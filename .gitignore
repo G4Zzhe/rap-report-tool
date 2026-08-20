@@ -48,6 +48,9 @@ output/*.md
 output/*.pptx
 !output/.gitkeep
 
+# Manual data (user maintained, do not commit real data)
+data/*.csv
+
 # PPT template path (local only)
 template/
 *.pptx
