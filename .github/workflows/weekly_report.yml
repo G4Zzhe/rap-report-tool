@@ -1,0 +1,54 @@
+name: 说唱音乐行业双周报
+
+on:
+  schedule:
+    # 每两周的周一 09:00（北京时间）运行
+    # UTC 时间 01:00 对应北京时间 09:00
+    # cron 原生不支持"每两周"，用每月 1 日和 16 日近似双周周期
+    - cron: '0 1 1,16 * *'
+  workflow_dispatch:
+    inputs:
+      start_date:
+        description: '报告周期开始日期 (YYYY-MM-DD)'
+        required: false
+        default: ''
+      end_date:
+        description: '报告周期结束日期 (YYYY-MM-DD)'
+        required: false
+        default: ''
+
+jobs:
+  generate-report:
+    runs-on: ubuntu-latest
+    steps:
+      - name: 检出代码
+        uses: actions/checkout@v4
+
+      - name: 设置 Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+          cache: 'pip'
+
+      - name: 安装依赖
+        run: |
+          pip install -r requirements.txt
+
+      - name: 运行报告生成
+        env:
+          AI_BASE_URL: ${{ secrets.AI_BASE_URL }}
+          AI_API_KEY: ${{ secrets.AI_API_KEY }}
+          AI_MODEL: ${{ secrets.AI_MODEL }}
+        run: |
+          if [ -n "${{ github.event.inputs.start_date }}" ]; then
+            python run.py --start ${{ github.event.inputs.start_date }} --end ${{ github.event.inputs.end_date }}
+          else
+            python run.py
+          fi
+
+      - name: 上传输出文件
+        uses: actions/upload-artifact@v4
+        with:
+          name: rap-report-${{ github.run_id }}
+          path: output/
+          retention-days: 30

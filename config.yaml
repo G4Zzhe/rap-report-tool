@@ -1,0 +1,58 @@
+# 基础配置（可提交 Git）
+
+# 报告输出设置
+report:
+  title: "神速信息_说唱音乐行业全景洞察分析报告"
+  subtitle: "深度解析舆情、数据、艺人及产业链趋势（双周版）"
+
+# 榜单配置
+charts:
+  brand_color: "#1f4e99"
+  secondary_color: "#f5a623"
+  negative_color: "#e94b3c"
+  style: "seaborn-v0_8-whitegrid"
+
+# AI 文案配置（敏感信息请放 config.local.yaml）
+ai:
+  enabled: true
+  base_url: ""  # 公司中转站地址，例如 https://api.example.com/v1
+  api_key: ""   # API Key
+  model: "gpt-4o-mini"
+  max_tokens: 2000
+  temperature: 0.7
+
+# 热搜/舆情配置
+hot_search:
+  keywords:
+    - "说唱"
+    - "嘻哈"
+    - "rap"
+    - "Rap"
+    - "Rapper"
+    - "rapper"
+    - "厂牌"
+    - " diss "
+    - "Diss"
+    - "freestyle"
+    - "Freestyle"
+    - "中国新说唱"
+    - "说唱巅峰对决"
+    - "地下八英里"
+  weibo_cookie: ""  # 微博登录 Cookie，需要时填入 config.local.yaml
+
+# 平台榜单 URL 或 ID
+platforms:
+  netease_chinese:
+    name: "网易云中文说唱榜"
+    list_id: "991319590"  # 网易云官方中文说唱榜
+  netease_global:
+    name: "网易云全球说唱榜"
+    list_id: "14028249541"  # 网易云官方全球说唱榜
+  kugou:
+    name: "酷狗说唱先锋榜"
+    list_id: ""      # 留空自动搜索；当前说唱先锋榜 rank_id 约为 265
+    api_url: ""      # 可选：自定义完整请求 URL，留空则使用默认接口构造
+  qq_music:
+    name: "QQ音乐说唱榜"
+    list_id: "58"    # QQ音乐官方说唱榜 topId
+    api_url: ""      # 可选：自定义完整请求 URL，留空则使用默认接口构造
