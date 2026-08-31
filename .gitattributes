@@ -1,0 +1,2 @@
+# Windows 批处理文件使用 GBK 编码和 CRLF 行尾，避免中文乱码
+*.bat text working-tree-encoding=gbk eol=crlf

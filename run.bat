@@ -1,5 +1,5 @@
 @echo off
-chcp 65001 > nul
+chcp 936 > nul
 cls
 echo ==========================================
 echo  说唱音乐行业双周报自动化工具
@@ -8,16 +8,10 @@ echo.
 
 REM 检查是否在 WSL 网络路径下运行
 set "CURRENT_DIR=%cd%"
-echo %CURRENT_DIR% | findstr /I "\\\\wsl.localhost\\" > nul
+echo %CURRENT_DIR% | findstr /I "\\wsl.localhost\" > nul
 if %errorlevel% equ 0 (
     echo [错误] 检测到当前目录位于 WSL 子系统路径中。
-    echo        Windows 双击运行需要把项目复制到 Windows 本地目录，例如：
-    echo        D:\\rap-report-tool
-    echo.
-    echo        操作步骤：
-    echo        1. 在 Windows 资源管理器中，把项目文件夹复制到 D 盘
-    echo        2. 进入 D:\\rap-report-tool 目录
-    echo        3. 双击 run.bat 运行
+    echo        请把项目复制到 Windows 本地目录，例如 D:\rap-report-tool
     pause
     exit /b 1
 )
@@ -35,10 +29,9 @@ if %errorlevel% neq 0 (
     echo 请按以下步骤安装：
     echo   1. 访问 https://www.python.org/downloads/
     echo   2. 下载 Python 3.11 或更高版本
-    echo   3. 安装时务必勾选 "Add Python to PATH"
-    echo   4. 安装完成后，重新双击本文件
+    echo   3. 安装时务必勾选 Add Python to PATH
+    echo   4. 安装完成后重新双击本文件
     echo.
-    echo 安装教程：https://docs.python.org/3/using/windows.html
     pause
     exit /b 1
 )
@@ -46,15 +39,6 @@ if %errorlevel% neq 0 (
 echo [信息] Python 版本：
 python --version
 echo.
-
-REM 检查 config.local.yaml 是否存在，不存在则提示
-if not exist "config.local.yaml" (
-    echo [提示] 未找到 config.local.yaml。
-    echo        如果你需要 AI 文案生成，请复制 config.yaml 为 config.local.yaml，
-    echo        并填写 AI 中转站的 base_url、api_key、model。
-    echo        如果不需要 AI，本程序将继续以无 AI 模式运行。
-    echo.
-)
 
 REM 检查虚拟环境
 if not exist "venv\Scripts\activate.bat" (
