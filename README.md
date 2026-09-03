@@ -297,7 +297,36 @@ cp config.yaml config.local.yaml
 
 ## GitHub Actions 定时运行
 
-仓库 `.github/workflows/weekly_report.yml` 已配置每月 1 日和 16 日 09:00（北京时间）自动运行。
+### 运行时间
+
+仓库已配置 GitHub Actions 定时任务，**每月 1 日和 16 日 09:00（北京时间）** 自动运行。
+
+> 说明：GitHub Actions 的 cron 表达式不支持"每两周"，因此用每月 1 日和 16 日来近似双周周期。
+
+### 查看运行结果
+
+1. 打开仓库页面：https://github.com/G4Zzhe/rap-report-tool
+2. 点顶部导航栏的 **Actions** 标签
+3. 左侧点 **说唱音乐行业双周报**
+4. 可以看到所有运行记录（自动运行 + 手动触发）
+
+### 下载生成的报告
+
+1. 点某次运行记录进去
+2. 页面底部会有 **Artifacts** 区域
+3. 点 `rap-report-xxxxx` 下载所有生成的文件（CSV、Excel、PNG、Markdown、PPT）
+
+### 手动触发运行
+
+如果想立即运行一次（不等定时任务）：
+
+1. 打开 **Actions** 标签
+2. 左侧点 **说唱音乐行业双周报**
+3. 点右上角的 **Run workflow** 按钮
+4. 选分支 **main**
+5. 点绿色 **Run workflow**
+
+### 当前配置说明
 
 当前 workflow 默认使用 `--no-ai` 模式，因此**不需要配置 Secrets 也能成功运行**，只是生成的报告中 AI 文案位置为空。
 
