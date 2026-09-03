@@ -4,7 +4,7 @@
 """
 import logging
 from pathlib import Path
-from typing import Any, Dict, List
+from typing import Any, Dict, List, Optional
 
 from src.fetchers.hot_search import format_hot_search_for_report
 from src.fetchers.manual_data import (
