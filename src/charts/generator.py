@@ -202,7 +202,7 @@ class ChartGenerator:
         return self.save(fig, "chart_artist_radar.png")
 
     def platform_treemap(self, raw_df: pd.DataFrame) -> Optional[Path]:
-        """生成歌曲上榜平台数矩形树图。"""
+        """生成歌曲上榜平台数矩形树图（仅展示跨平台歌曲）。"""
         if raw_df.empty:
             return None
         summary = raw_df.groupby("match_key").agg({
@@ -210,8 +210,10 @@ class ChartGenerator:
             "artist": "first",
             "platform": "nunique",
         }).reset_index()
-        summary = summary[summary["platform"] >= 1]
+        # 只展示上了 2 个及以上平台的歌曲，避免图表过于密集
+        summary = summary[summary["platform"] >= 2]
         if summary.empty:
+            logger.info("无跨平台歌曲，跳过矩形树图生成")
             return None
 
         labels = [f"{row['song_name']}\n({row['platform']}平台)" for _, row in summary.iterrows()]
@@ -224,10 +226,10 @@ class ChartGenerator:
             label=labels,
             color=colors,
             alpha=0.8,
-            text_kwargs={"fontsize": 8, "fontproperties": _CHINESE_FONT_PROP},
+            text_kwargs={"fontsize": 10, "fontproperties": _CHINESE_FONT_PROP},
             ax=ax,
         )
-        ax.set_title("歌曲上榜平台数矩形树图", fontsize=14, fontweight="bold")
+        ax.set_title("跨平台歌曲分布（2 个及以上平台）", fontsize=14, fontweight="bold")
         ax.title.set_fontproperties(_CHINESE_FONT_PROP)
         ax.axis("off")
         plt.tight_layout()
