@@ -10,7 +10,7 @@ CSV 文件位置（可配置）：
 """
 import logging
 from pathlib import Path
-from typing import Any, Dict, List, Optional
+from typing import Any, Dict, List, Optional, Tuple
 
 import pandas as pd
 
